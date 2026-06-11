@@ -1,0 +1,55 @@
+name: Deploy Jekyll site to Pages
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: "pages-deployment"
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  deploy:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1.162.0
+        with:
+          ruby-version: '3.2.2'
+          bundler-cache: true
+
+      - name: Build with Jekyll
+        env:
+          JEKYLL_ENV: production
+        run: |
+          cat > _config.ci.yml <<EOF
+          url: "https://meshery.io"
+          baseurl: ""
+          EOF
+
+          bundle exec jekyll build --config _config.yml,_config.ci.yml
+
+          echo "meshery.io" > _site/CNAME
+
+          touch _site/.nojekyll
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./_site
+          publish_branch: gh-pages
+          keep_files: true
